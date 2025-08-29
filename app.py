@@ -1,38 +1,52 @@
-# BƯỚC 2: IMPORT THƯ VIỆN VÀ CHẠY CODE TRỰC QUAN HÓA
+# app.py
 
-import py3Dmol
-from rdkit import Chem
-from rdkit.Chem import AllChem
 import streamlit as st
+import streamlit.components.v1 as components
+from utils import smiles_to_3d_viewer # Import hàm cốt lõi của chúng ta
 
-# In ra thông báo thành công để xác nhận
-st.write("Tất cả thư viện đã được cài đặt và import thành công!")
-st.write("---")
+# --- Thiết lập giao diện trang ---
+st.set_page_config(layout="wide")
+st.title("🧪 Trình Tương tác, Trực quan hóa Phân tử")
 
-# --- Đoạn code trực quan hóa phân tử của em ---
-# Bước 1: Tạo đối tượng phân tử từ chuỗi SMILES (ví dụ: Caffeine)
-smiles_string = 'CN1C=NC2=C1C(=O)N(C(=O)N2C)C'
-mol = Chem.MolFromSmiles(smiles_string)
+# --- Giao diện người dùng ---
 
-# Bước 2: Thêm Hydrogens và tạo tọa độ 3D
-mol = Chem.AddHs(mol)
-AllChem.EmbedMolecule(mol)
-AllChem.UFFOptimizeMolecule(mol)
+# 1. Ô nhập liệu SMILES
+smiles_input = st.text_input(
+    label="Nhập chuỗi SMILES:",
+    # [ ] Yêu cầu 3: Hiển thị Caffeine làm giá trị mặc định
+    value="CN1C=NC2=C1C(=O)N(C(=O)N2C)C" 
+)
 
-# Bước 3: Chuyển đổi sang định dạng mà py3Dmol có thể đọc
-mblock = Chem.MolToMolBlock(mol)
+# 2. Nút bấm để kích hoạt logic
+clicked = st.button("Hiển thị Phân tử", type="primary")
 
-# Bước 4: Tạo viewer và hiển thị phân tử
-view = py3Dmol.view(width=600, height=400)
-view.addModel(mblock, 'mol')
-view.setStyle({'stick':{}})
-view.zoomTo()
+# --- Logic kết nối & Xử lý ---
 
-# Generate the HTML representation of the molecule
-html = view._make_html()
+# Chúng ta muốn hiển thị phân tử mặc định ngay khi mở app
+# và cũng muốn cập nhật khi người dùng bấm nút.
+# Điều kiện `if clicked:` chỉ xử lý khi nút được bấm. 
+# Để xử lý cả trường hợp mặc định, chúng ta cần một logic tinh tế hơn.
+# Ta sẽ sử dụng Session State của Streamlit để lưu trữ SMILES cuối cùng cần hiển thị.
 
-# Display the molecule in Streamlit
-st.components.v1.html(html, width=600, height=400)
+# Khởi tạo session state nếu chưa có
+if 'smiles_to_display' not in st.session_state:
+    st.session_state.smiles_to_display = "CN1C=NC2=C1C(=O)N(C(=O)N2C)C"
 
-# In ra thông báo thành công
-st.write("Phân tử đã được hiển thị thành công ngay bên dưới!")
+# Khi người dùng bấm nút, cập nhật SMILES cần hiển thị
+if clicked:
+    st.session_state.smiles_to_display = smiles_input
+
+# Luôn luôn hiển thị phân tử dựa trên session state
+if st.session_state.smiles_to_display:
+    st.write(f"Đang hiển thị mô hình 3D cho: `{st.session_state.smiles_to_display}`")
+    
+    # [ ] Yêu cầu 4: Gọi hàm xử lý cốt lõi
+    viewer = smiles_to_3d_viewer(smiles_string=st.session_state.smiles_to_display, width=800, height=600)
+
+    # [ ] Yêu cầu 5: Xử lý lỗi
+    if viewer:
+        viewer_html = viewer._make_html()
+        components.html(viewer_html, height=600, width=800, scrolling=True)
+    else:
+        # Nếu hàm trả về None, tức là SMILES không hợp lệ
+        st.error("Lỗi: Chuỗi SMILES bạn nhập không hợp lệ hoặc không thể tạo mô hình 3D. Vui lòng kiểm tra lại.")
